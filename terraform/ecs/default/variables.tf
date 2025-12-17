@@ -46,3 +46,49 @@ variable "lifecycle_events_enabled" {
     error_message = "lifecycle_events_enabled can only be true when container_insights_setting is 'enhanced'"
   }
 }
+
+# -----------------------------------------------------------------------------
+# Observability Variables
+# -----------------------------------------------------------------------------
+
+variable "log_retention_days" {
+  type        = number
+  default     = 30
+  description = "CloudWatch Logs retention period in days"
+}
+
+variable "logs_kms_key_arn" {
+  type        = string
+  default     = null
+  description = "KMS key ARN for encrypting CloudWatch Logs (optional)"
+}
+
+variable "alb_access_logs_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable ALB access logs to S3"
+}
+
+variable "alb_logs_retention_days" {
+  type        = number
+  default     = 30
+  description = "S3 lifecycle expiration for ALB access logs"
+}
+
+variable "vpc_flow_logs_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable VPC Flow Logs to CloudWatch Logs"
+}
+
+variable "cloudwatch_alarms_enabled" {
+  type        = bool
+  default     = true
+  description = "Enable CloudWatch alarms for ECS services and ALB"
+}
+
+variable "alarm_sns_topic_arn" {
+  type        = string
+  default     = null
+  description = "SNS topic ARN for CloudWatch alarm notifications"
+}

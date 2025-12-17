@@ -7,6 +7,7 @@ output "result" {
   value = {
     environment-name = var.environment_name
     created-by       = "retail-store-sample-app"
+    ecsdevopsagent   = "true"
   }
   description = "Computed tag results"
 }

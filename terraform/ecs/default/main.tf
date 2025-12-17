@@ -39,6 +39,14 @@ module "retail_app_ecs" {
   container_insights_setting = var.container_insights_setting
   lifecycle_events_enabled   = var.lifecycle_events_enabled
 
+  # Observability settings
+  log_retention_days        = var.log_retention_days
+  logs_kms_key_arn          = var.logs_kms_key_arn
+  alb_access_logs_enabled   = var.alb_access_logs_enabled
+  alb_logs_retention_days   = var.alb_logs_retention_days
+  vpc_flow_logs_enabled     = var.vpc_flow_logs_enabled
+  cloudwatch_alarms_enabled = var.cloudwatch_alarms_enabled
+  alarm_sns_topic_arn       = var.alarm_sns_topic_arn
 
   catalog_db_endpoint = module.dependencies.catalog_db_endpoint
   catalog_db_port     = module.dependencies.catalog_db_port

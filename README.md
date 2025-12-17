@@ -34,6 +34,49 @@ See the [features documentation](./docs/features.md) for more information.
 
 ![Screenshot](/docs/images/screenshot.png)
 
+## Getting Started
+
+### Install Git
+
+If you don't have Git installed, install it first:
+
+```bash
+# Linux (Debian/Ubuntu)
+sudo apt-get update && sudo apt-get install git
+
+# Linux (RHEL/CentOS/Amazon Linux)
+sudo yum install git
+
+# macOS (using Homebrew)
+brew install git
+
+# Verify installation
+git --version
+```
+
+### Clone the Repository
+
+> **First time using GitLab?** If you haven't set up SSH access for GitLab, follow the [GitLab SSH Configuration Guide](https://gitlab.pages.aws.dev/docs/Platform/ssh.html#ssh-config) first.
+
+```bash
+# Clone the repository
+git clone git@ssh.gitlab.aws.dev:kulkshya/ecs-retail-app.git
+
+# Navigate to the project directory
+cd ecs-retail-app
+```
+
+> **Note:** If the above clone command fails, try using the alternative GitLab URL:
+> ```bash
+> git clone git@gitlab.aws.dev:kulkshya/ecs-retail-app.git
+> ```
+
+> **🔧 Troubleshooting Git Clone Issues?** If you're encountering persistent issues with `git clone` (SSH key problems, network restrictions, etc.), you can download the repository as a ZIP file instead:
+> 1. Navigate to the repository in your browser: https://gitlab.aws.dev/kulkshya/ecs-retail-app
+> 2. Click the **Download** button (or **Code** → **Download source code**)
+> 3. Select **Download ZIP** (or your preferred format)
+> 4. Extract the ZIP file to your desired location
+
 ## Application Architecture
 
 The application has been deliberately over-engineered to generate multiple de-coupled components. These components generally have different infrastructure dependencies, and may support multiple "backends" (example: Carts service supports MongoDB or DynamoDB).
@@ -130,16 +173,237 @@ To remove the application use `kubectl` again:
 kubectl delete -f https://github.com/aws-containers/retail-store-sample-app/releases/latest/download/kubernetes.yaml
 ```
 
-### Terraform
+### Terraform (Amazon ECS)
 
-The following options are available to deploy the application using Terraform:
+Deploy the application to Amazon ECS using Terraform with production-grade observability.
 
-| Name                                             | Description                                                                                                     |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| [Amazon EKS](./terraform/eks/default/)           | Deploys the application to Amazon EKS using other AWS services for dependencies, such as RDS, DynamoDB etc.     |
-| [Amazon EKS (Minimal)](./terraform/eks/minimal/) | Deploys the application to Amazon EKS using in-cluster dependencies instead of RDS, DynamoDB etc.               |
-| [Amazon ECS](./terraform/ecs/default/)           | Deploys the application to Amazon ECS using other AWS services for dependencies, such as RDS, DynamoDB etc.     |
-| [AWS App Runner](./terraform/apprunner/)         | Deploys the application to AWS App Runner using other AWS services for dependencies, such as RDS, DynamoDB etc. |
+#### Prerequisites
+
+1. **AWS CLI** - Install and configure with appropriate credentials
+   ```bash
+   # Install AWS CLI (Linux)
+   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+   unzip awscliv2.zip
+   sudo ./aws/install
+   
+   # Configure credentials
+   aws configure
+   # Or use SSO
+   aws configure sso
+   ```
+
+2. **Terraform** >= 1.0
+   ```bash
+   # Install Terraform (Linux)
+   sudo yum install -y yum-utils
+   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+   sudo yum -y install terraform
+   
+   # Verify installation
+   terraform --version
+   ```
+
+3. **Session Manager Plugin** (required for ECS Exec and fault injection)
+   ```bash
+   # Install Session Manager plugin (Linux)
+   curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+   sudo dpkg -i session-manager-plugin.deb
+   
+   # Verify installation
+   session-manager-plugin --version
+   ```
+
+4. **AWS Permissions** - Your IAM user/role needs permissions for:
+   - ECS (clusters, services, tasks, task definitions)
+   - EC2 (VPC, subnets, security groups, NAT gateway)
+   - RDS (DB instances, subnet groups)
+   - DynamoDB (tables)
+   - ElastiCache (Redis clusters)
+   - Amazon MQ (brokers)
+   - CloudWatch (logs, metrics, dashboards, alarms)
+   - IAM (roles, policies)
+   - Application Load Balancer
+   - S3 (if ALB access logs enabled)
+
+#### Deployment Steps
+
+```bash
+# Navigate to the Terraform directory
+cd terraform/ecs/default
+
+# Initialize Terraform (downloads providers and modules)
+terraform init
+
+# Preview the changes (optional but recommended)
+terraform plan
+
+# Deploy the infrastructure (takes ~15-20 minutes)
+terraform apply
+
+# Type 'yes' when prompted to confirm
+```
+
+> **Important:** All resources created by this Terraform deployment are tagged with `ecsdevopsagent=true`. This tag is used to identify resources managed by this project and enables integration with ECS DevOps agents and automation tools.
+
+#### Deployment Outputs
+
+After deployment completes, Terraform outputs:
+- `ui_service_url` - Application URL (ALB endpoint)
+- `cloudwatch_dashboard_url` - CloudWatch dashboard URL
+- `ecs_cluster_name` - ECS cluster name
+- `ecs_tasks_log_group` - CloudWatch log group for task logs
+- `ecs_exec_log_group` - CloudWatch log group for ECS Exec sessions
+
+#### Verify Deployment
+
+```bash
+# Get the application URL
+terraform output ui_service_url
+
+# Test the application
+curl -I $(terraform output -raw ui_service_url)
+
+# View ECS cluster status
+aws ecs describe-clusters --clusters $(terraform output -raw ecs_cluster_name)
+
+# List running services
+aws ecs list-services --cluster $(terraform output -raw ecs_cluster_name)
+```
+
+#### Cleanup
+
+To destroy all resources and avoid ongoing charges:
+```bash
+terraform destroy
+# Type 'yes' when prompted to confirm
+```
+
+> **Note:** Destruction takes ~10-15 minutes. Ensure all resources are deleted to avoid unexpected charges.
+
+## Observability
+
+The ECS deployment includes production-grade observability features powered by AWS-native services:
+
+### CloudWatch Container Insights (Enhanced)
+
+Container Insights with enhanced observability is enabled by default (`container_insights_setting = "enhanced"`), providing:
+- Automatic collection of CPU, memory, network, and storage metrics
+- Per-container and per-task metrics
+- Performance log events for troubleshooting
+
+### Logging
+
+- ECS task logs sent to CloudWatch Logs with configurable retention
+- ECS Exec session logging for audit trails
+- Optional KMS encryption for log groups
+- Optional VPC Flow Logs for network analysis
+
+### Metrics & Dashboards
+
+- Pre-configured CloudWatch dashboard with CPU, memory, task count, and ALB metrics
+- Service-level metrics for all microservices (ui, catalog, carts, checkout, orders)
+
+### Alarms
+
+When `cloudwatch_alarms_enabled = true` (default):
+- CPU/Memory utilization alarms per service (threshold: 80%)
+- Running task count alarms (alerts when no tasks running)
+- ALB 5XX error alarms
+- ALB latency alarms (p95 > 2s)
+- Log-based error spike detection
+
+### Configuration Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `container_insights_setting` | `"enhanced"` | Container Insights mode (`enhanced` or `disabled`) |
+| `log_retention_days` | `30` | CloudWatch Logs retention period |
+| `logs_kms_key_arn` | `null` | Optional KMS key for log encryption |
+| `cloudwatch_alarms_enabled` | `true` | Enable CloudWatch alarms |
+| `alarm_sns_topic_arn` | `null` | SNS topic for alarm notifications |
+| `alb_access_logs_enabled` | `false` | Enable ALB access logs to S3 |
+| `vpc_flow_logs_enabled` | `false` | Enable VPC Flow Logs |
+
+### Deployed Resources
+
+The ECS deployment creates:
+- VPC with public/private subnets and NAT Gateway
+- ECS Cluster with Fargate capacity providers
+- 5 ECS services: ui, catalog, carts, checkout, orders
+- Application Load Balancer
+- RDS MariaDB instances (catalog, orders)
+- ElastiCache Redis (checkout)
+- Amazon MQ broker (orders)
+- DynamoDB table (carts)
+- CloudWatch log groups, dashboard, and alarms
+
+## Fault Injection
+
+The `fault-injection/` directory contains scripts for chaos engineering experiments on ECS. These scripts use ECS Exec to inject real faults into running containers.
+
+### Prerequisites
+
+- ECS Exec must be enabled on the cluster (enabled by default in this deployment)
+- AWS CLI configured with appropriate permissions
+- Session Manager plugin installed: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
+
+### Available Scenarios
+
+| Script | Description | Target Service |
+|--------|-------------|----------------|
+| `inject-cpu-stress.sh` | CPU stress using stress-ng | catalog |
+| `inject-memory-stress.sh` | Memory stress using stress-ng | carts |
+| `inject-dynamodb-latency.sh` | Network latency to DynamoDB | carts |
+| `inject-rds-sg-block.sh` | Block RDS security group access | catalog, orders |
+| `inject-rds-stress.sh` | Database stress queries | catalog |
+
+### Usage
+
+```bash
+# CPU Stress (default: 2 workers, 5 minutes)
+./fault-injection/inject-cpu-stress.sh
+
+# With custom parameters
+CLUSTER_NAME=my-cluster SERVICE_NAME=ui CPU_WORKERS=4 STRESS_DURATION=60 \
+  ./fault-injection/inject-cpu-stress.sh
+
+# Memory Stress (default: 80% memory, 5 minutes)
+MEMORY_PERCENT=90 ./fault-injection/inject-memory-stress.sh
+
+# DynamoDB Latency (default: 500ms, 5 minutes)
+LATENCY_MS=1000 ./fault-injection/inject-dynamodb-latency.sh
+
+# RDS Security Group Block
+./fault-injection/inject-rds-sg-block.sh
+
+# RDS Stress Queries
+./fault-injection/inject-rds-stress.sh
+```
+
+### Rollback
+
+Each injection script has a corresponding rollback script:
+
+```bash
+./fault-injection/rollback-cpu-stress.sh
+./fault-injection/rollback-memory-stress.sh
+./fault-injection/rollback-dynamodb-latency.sh
+./fault-injection/rollback-rds-sg-block.sh /tmp/rds-sg-backup-<timestamp>.json
+```
+
+Note: CPU, memory, and DynamoDB latency injections auto-rollback after the specified duration.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLUSTER_NAME` | `retail-store-ecs-cluster` | ECS cluster name |
+| `SERVICE_NAME` | varies | Target ECS service |
+| `AWS_REGION` | `us-east-1` | AWS region |
+| `STRESS_DURATION` | `300` | Duration in seconds |
+| `CPU_WORKERS` | `2` | Number of CPU stress workers |
+| `MEMORY_PERCENT` | `80` | Target memory percentage |
+| `LATENCY_MS` | `500` | Network latency in milliseconds |
 
 ## Security
 
