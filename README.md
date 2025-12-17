@@ -35,7 +35,8 @@ This lab provides a production-ready Amazon ECS deployment environment for testi
 - [Application Architecture](#application-architecture)
 - [Deployment (Amazon ECS)](#deployment-amazon-ecs)
 - [Observability](#observability)
-- [Fault Injection](#fault-injection)
+- [AWS DevOps Agent Integration](#aws-devops-agent-integration)
+- [Fault Injection Scenarios](#fault-injection-scenarios)
 - [Security](#security)
 - [License](#license)
 
@@ -260,9 +261,141 @@ The ECS deployment creates:
 - DynamoDB table (carts)
 - CloudWatch log groups, dashboard, and alarms
 
-## Fault Injection
+## AWS DevOps Agent Integration
 
-The `fault-injection/` directory contains scripts for chaos engineering experiments on ECS. These scripts use ECS Exec to inject real faults into running containers.
+AWS DevOps Agent is a frontier AI agent that helps accelerate incident response and improve system reliability. It automatically correlates data across your operational toolchain, identifies probable root causes, and recommends targeted mitigations. This section provides step-by-step guidance for integrating the DevOps Agent with your ECS-based Retail Store deployment.
+
+> **Note:** AWS DevOps Agent is currently in **public preview** and available in the **US East (N. Virginia) Region** (`us-east-1`). While the agent runs in `us-east-1`, it can monitor applications deployed in any AWS Region.
+
+### Create an Agent Space
+
+An **Agent Space** defines the scope of what AWS DevOps Agent can access as it performs tasks. Think of it as a logical boundary that groups related resources, applications, and infrastructure for investigation purposes.
+
+#### Step-by-Step: Create an Agent Space
+
+1. **Navigate to AWS DevOps Agent Console**
+   ```
+   https://console.aws.amazon.com/devops-agent/home?region=us-east-1
+   ```
+
+2. **Create the Agent Space**
+   - Click **Create Agent Space**
+   - Enter a name: `retail-store-ecs-lab` (or your preferred name)
+   - Optionally add a description: "Agent Space for AWS Retail Store Sample Application on ECS"
+
+3. **Configure IAM Roles**
+   
+   The console will guide you to create the required IAM roles. AWS DevOps Agent needs permissions to:
+   - Introspect AWS resources in your account(s)
+   - Access CloudWatch metrics and logs
+   - Query X-Ray traces
+   - Read ECS cluster and service information
+
+4. **Enable the Web App**
+   - Check the option to **Enable AWS DevOps Agent web app**
+   - This provides a web interface for operators to trigger and monitor investigations
+
+5. **Click Create**
+   - Wait for the Agent Space to be created (typically 1-2 minutes)
+
+#### Mandatory Resource Tags
+
+All AWS resources in this lab are tagged with:
+
+```
+ecsdevopsagent = "true"
+```
+
+This tag is **critical** for the DevOps Agent to:
+- Automatically discover resources associated with the Retail Store application
+- Correlate related resources during investigations
+- Scope troubleshooting to the correct infrastructure
+
+The Terraform deployment automatically applies this tag to all resources.
+
+### View Topology Graph
+
+The **Topology** view provides a visual map of your system components and their relationships. AWS DevOps Agent automatically builds this topology by analyzing your infrastructure.
+
+#### Accessing the Topology View
+
+1. Open your Agent Space in the AWS Console
+2. Click the **Topology** tab
+3. View the automatically discovered resources and relationships
+
+#### What the Topology Shows
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        DevOps Agent Topology View                            │
+│                                                                              │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                    │
+│  │    ECS      │────▶│     RDS     │     │  DynamoDB   │                    │
+│  │   Cluster   │     │   MariaDB   │     │   Table     │                    │
+│  └──────┬──────┘     └─────────────┘     └─────────────┘                    │
+│         │                                                                    │
+│  ┌──────▼──────┐     ┌─────────────┐     ┌─────────────┐                    │
+│  │ ECS Services│────▶│  Amazon MQ  │     │ ElastiCache │                    │
+│  │ (5 services)│     │  RabbitMQ   │     │   Redis     │                    │
+│  └─────────────┘     └─────────────┘     └─────────────┘                    │
+│                                                                              │
+│  ┌─────────────┐     ┌─────────────┐                                        │
+│  │  CloudWatch │     │     ALB     │                                        │
+│  │   Alarms    │     │             │                                        │
+│  └─────────────┘     └─────────────┘                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Operator Access
+
+Operator access allows your on-call engineers and DevOps team to interact with the AWS DevOps Agent through a dedicated web application.
+
+#### Enabling Operator Access
+
+1. Navigate to your Agent Space
+2. Click **Operator access** in the left navigation
+3. Click **Enable operator access** if not already enabled
+
+#### Starting an Investigation
+
+From the Operator Web App:
+
+1. Click **Start Investigation**
+2. Choose a starting point:
+   - **Latest alarm** - Investigate the most recent CloudWatch alarm
+   - **High CPU usage** - Analyze CPU utilization across resources
+   - **Error rate spike** - Investigate application error increases
+   - **Custom** - Describe the issue in your own words
+
+3. Provide investigation details:
+   - **Investigation details** - Describe what you're investigating
+   - **Date and time** - When the incident occurred
+   - **AWS Account ID** - The account containing the affected resources
+
+4. Click **Start** and watch the investigation unfold in real-time
+
+#### Safety Mechanisms
+
+| Mechanism | Description |
+|-----------|-------------|
+| **Read-Only by Default** | The agent only reads data; it does not modify resources |
+| **Scoped Access** | Access is limited to resources within the Agent Space |
+| **Audit Logging** | All agent actions are logged to CloudTrail |
+| **Human-in-the-Loop** | Mitigation recommendations require human approval |
+
+### Official Documentation
+
+| Resource | URL | Description |
+|----------|-----|-------------|
+| **Product Page** | https://aws.amazon.com/devops-agent | Overview and sign-up |
+| **AWS News Blog** | [Launch Announcement](https://aws.amazon.com/blogs/aws/aws-devops-agent-helps-you-accelerate-incident-response-and-improve-system-reliability-preview/) | Detailed walkthrough |
+| **User Guide** | [Creating an Agent Space](https://docs.aws.amazon.com/devopsagent/latest/userguide/getting-started-with-aws-devops-agent-creating-an-agent-space.html) | Step-by-step setup |
+
+---
+
+## Fault Injection Scenarios
+
+The `fault-injection/` directory contains scripts for chaos engineering experiments on ECS. These scripts use ECS Exec to inject real faults into running containers, allowing you to test the DevOps Agent's investigation capabilities.
 
 ### Prerequisites
 
@@ -270,51 +403,200 @@ The `fault-injection/` directory contains scripts for chaos engineering experime
 - AWS CLI configured with appropriate permissions
 - Session Manager plugin installed: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
 
+### Demo Workflow
+
+For a training session, follow this workflow:
+
+```
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
+│  1. Inject Fault    │────▶│  2. Observe Symptoms│────▶│  3. Start           │
+│  (run inject script)│     │  (monitoring tools) │     │  Investigation      │
+└─────────────────────┘     └─────────────────────┘     └──────────┬──────────┘
+                                                                   │
+                                                                   ▼
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
+│  6. Rollback Fault  │◀────│  5. Review & Approve│◀────│  4. Agent Analyzes  │
+│  (run rollback      │     │  Recommendations    │     │  & Correlates Data  │
+│   script)           │     │                     │     │                     │
+└─────────────────────┘     └─────────────────────┘     └─────────────────────┘
+```
+
 ### Available Scenarios
 
-| Script | Description | Target Service |
-|--------|-------------|----------------|
-| `inject-cpu-stress.sh` | CPU stress using stress-ng | catalog |
-| `inject-memory-stress.sh` | Memory stress using stress-ng | carts |
-| `inject-dynamodb-latency.sh` | Network latency to DynamoDB | carts |
-| `inject-rds-sg-block.sh` | Block RDS security group access | catalog, orders |
-| `inject-rds-stress.sh` | Database stress queries | catalog |
+| Scenario | Inject Script | Rollback Script | Target Service |
+|----------|---------------|-----------------|----------------|
+| [CPU Stress](#1-cpu-stress-injection) | `inject-cpu-stress.sh` | `rollback-cpu-stress.sh` | catalog |
+| [Memory Stress](#2-memory-stress-injection) | `inject-memory-stress.sh` | `rollback-memory-stress.sh` | carts |
+| [DynamoDB Latency](#3-dynamodb-latency-injection) | `inject-dynamodb-latency.sh` | `rollback-dynamodb-latency.sh` | carts |
+| [RDS Security Group Block](#4-rds-security-group-block) | `inject-rds-sg-block.sh` | `rollback-rds-sg-block.sh` | catalog, orders |
+| [RDS Stress Test](#5-rds-database-stress-test) | `inject-rds-stress.sh` | (auto-terminates) | catalog |
 
-### Usage
+---
 
+### 1. CPU Stress Injection
+
+Simulates high CPU utilization in the Catalog service using stress-ng.
+
+**What it does:**
+- Spawns CPU stress workers inside the running container
+- Default: 2 workers for 5 minutes
+
+**Expected symptoms:**
+- CPU utilization spikes in CloudWatch Container Insights
+- Increased response latency for product catalog
+- Potential task throttling or health check failures
+
+**Run the scenario:**
 ```bash
-# CPU Stress (default: 2 workers, 5 minutes)
+# Inject the fault (default: 2 workers, 5 minutes)
 ./fault-injection/inject-cpu-stress.sh
 
 # With custom parameters
-CLUSTER_NAME=my-cluster SERVICE_NAME=ui CPU_WORKERS=4 STRESS_DURATION=60 \
-  ./fault-injection/inject-cpu-stress.sh
+CPU_WORKERS=4 STRESS_DURATION=120 ./fault-injection/inject-cpu-stress.sh
 
-# Memory Stress (default: 80% memory, 5 minutes)
-MEMORY_PERCENT=90 ./fault-injection/inject-memory-stress.sh
-
-# DynamoDB Latency (default: 500ms, 5 minutes)
-LATENCY_MS=1000 ./fault-injection/inject-dynamodb-latency.sh
-
-# RDS Security Group Block
-./fault-injection/inject-rds-sg-block.sh
-
-# RDS Stress Queries
-./fault-injection/inject-rds-stress.sh
+# Rollback (or wait for auto-rollback)
+./fault-injection/rollback-cpu-stress.sh
 ```
 
-### Rollback
+**DevOps Agent Investigation Prompts:**
 
-Each injection script has a corresponding rollback script:
+> **Investigation Details:** "Product catalog is responding slowly. Users are complaining about slow page loads when browsing products."
 
+> **Investigation Starting Point:** "Check the catalog ECS service. Look at CPU metrics and task health in CloudWatch Container Insights."
+
+---
+
+### 2. Memory Stress Injection
+
+Simulates memory pressure in the Carts service using stress-ng.
+
+**What it does:**
+- Allocates memory inside the running container
+- Default: 80% of available memory for 5 minutes
+
+**Expected symptoms:**
+- Memory utilization spikes in CloudWatch Container Insights
+- Potential OOMKill events and task restarts
+- Cart operations may fail or timeout
+
+**Run the scenario:**
 ```bash
-./fault-injection/rollback-cpu-stress.sh
+# Inject the fault (default: 80% memory, 5 minutes)
+./fault-injection/inject-memory-stress.sh
+
+# With custom parameters
+MEMORY_PERCENT=90 STRESS_DURATION=180 ./fault-injection/inject-memory-stress.sh
+
+# Rollback (or wait for auto-rollback)
 ./fault-injection/rollback-memory-stress.sh
+```
+
+**DevOps Agent Investigation Prompts:**
+
+> **Investigation Details:** "Cart service is unstable. Users are seeing errors when adding items to cart. Tasks seem to be restarting."
+
+> **Investigation Starting Point:** "Check the carts ECS service for task restarts and OOMKill events. Look at memory usage patterns in Container Insights."
+
+---
+
+### 3. DynamoDB Latency Injection
+
+Adds artificial network latency to DynamoDB calls from the Carts service.
+
+**What it does:**
+- Uses `tc qdisc netem` to inject network latency
+- Default: 500ms latency for 5 minutes
+
+**Expected symptoms:**
+- Cart operations slow (add to cart, view cart)
+- DynamoDB latency increase visible in CloudWatch
+- Application timeouts during checkout
+
+**Run the scenario:**
+```bash
+# Inject the fault (default: 500ms, 5 minutes)
+./fault-injection/inject-dynamodb-latency.sh
+
+# With custom parameters
+LATENCY_MS=1000 STRESS_DURATION=300 ./fault-injection/inject-dynamodb-latency.sh
+
+# Rollback (or wait for auto-rollback)
 ./fault-injection/rollback-dynamodb-latency.sh
+```
+
+**DevOps Agent Investigation Prompts:**
+
+> **Investigation Details:** "Adding items to cart is super slow. Used to be instant but now takes 3-5 seconds. Checkout is also sluggish."
+
+> **Investigation Starting Point:** "Check DynamoDB metrics for the carts table. Look at latency and any throttling. Also check the carts ECS service."
+
+---
+
+### 4. RDS Security Group Block
+
+Simulates an accidental security group change that blocks ECS tasks from connecting to RDS.
+
+**What it does:**
+- Removes the ingress rule allowing ECS tasks to access RDS on port 3306
+- RDS instance remains healthy but unreachable
+
+**Expected symptoms:**
+- Catalog and Orders service failures
+- "Connection timed out" errors in task logs
+- ALB returning 500/502/504 errors
+- RDS shows healthy in console but unreachable
+
+**Run the scenario:**
+```bash
+# Inject the fault
+./fault-injection/inject-rds-sg-block.sh
+
+# Monitor application failures
+aws logs tail /ecs/retail-store-ecs --follow
+
+# Rollback (requires backup file path)
 ./fault-injection/rollback-rds-sg-block.sh /tmp/rds-sg-backup-<timestamp>.json
 ```
 
-Note: CPU, memory, and DynamoDB latency injections auto-rollback after the specified duration.
+**DevOps Agent Investigation Prompts:**
+
+> **Investigation Details:** "Catalog and orders are completely down. Getting 500 errors. RDS shows healthy in the console but apps can't seem to connect."
+
+> **Investigation Starting Point:** "Check the RDS security groups and VPC configuration. The database is up but something is blocking connections from ECS tasks."
+
+---
+
+### 5. RDS Database Stress Test
+
+Creates heavy load on the RDS MariaDB instance to simulate database performance degradation.
+
+**What it does:**
+- Runs complex queries causing full table scans
+- Generates lock contention and high CPU usage
+
+**Expected symptoms:**
+- RDS CPU utilization: 70-100%
+- Slow queries visible in RDS Performance Insights
+- Catalog service timeouts and errors
+
+**Run the scenario:**
+```bash
+# Inject the fault
+./fault-injection/inject-rds-stress.sh
+
+# Monitor RDS metrics in AWS Console
+# RDS > Performance Insights > retail-store-ecs-catalog
+
+# The stress test auto-terminates after completion
+```
+
+**DevOps Agent Investigation Prompts:**
+
+> **Investigation Details:** "Product catalog is timing out. Database seems to be under heavy load. Users can't browse products."
+
+> **Investigation Starting Point:** "Check the RDS MariaDB instance for the catalog service. Look at Performance Insights for slow queries and CPU usage."
+
+---
 
 ### Environment Variables
 
@@ -327,6 +609,11 @@ Note: CPU, memory, and DynamoDB latency injections auto-rollback after the speci
 | `CPU_WORKERS` | `2` | Number of CPU stress workers |
 | `MEMORY_PERCENT` | `80` | Target memory percentage |
 | `LATENCY_MS` | `500` | Network latency in milliseconds |
+
+### Rollback Notes
+
+- **CPU, Memory, DynamoDB Latency**: Auto-rollback after the specified duration
+- **RDS Security Group Block**: Requires manual rollback with the backup file path
 
 ## Security
 
