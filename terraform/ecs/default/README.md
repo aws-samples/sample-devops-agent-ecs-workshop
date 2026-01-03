@@ -2,17 +2,53 @@
 
 This Terraform module creates all the necessary infrastructure and deploys the retail sample application on [Amazon Elastic Container Service](https://aws.amazon.com/ecs/).
 
-It provides:
+## Architecture
 
-- VPC with public and private subnets
-- ECS cluster using Fargate for compute
-- All application dependencies such as RDS, DynamoDB table, Elasticache etc.
-- Deployment of application components as ECS services
-- ECS Service Connect to handle traffic between services
-- Optional OpenTelemetry integration for observability
-- Configurable Container Insights settings
+The module deploys a complete microservices architecture:
 
-NOTE: This will create resources in your AWS account which will incur costs. You are responsible for these costs, and should understand the resources being created before proceeding.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              VPC (10.0.0.0/16)                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        Public Subnets                                │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │              Application Load Balancer                       │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        Private Subnets                               │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │                    ECS Cluster (Fargate)                     │   │   │
+│  │  │  ┌─────┐ ┌─────────┐ ┌──────┐ ┌──────────┐ ┌────────┐      │   │   │
+│  │  │  │ UI  │ │ Catalog │ │ Cart │ │ Checkout │ │ Orders │      │   │   │
+│  │  │  └─────┘ └─────────┘ └──────┘ └──────────┘ └────────┘      │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │                    Data Stores                               │   │   │
+│  │  │  ┌─────────────┐ ┌───────────┐ ┌─────────────┐ ┌─────────┐ │   │   │
+│  │  │  │ RDS MariaDB │ │ DynamoDB  │ │ ElastiCache │ │   MQ    │ │   │   │
+│  │  │  └─────────────┘ └───────────┘ └─────────────┘ └─────────┘ │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Features
+
+- VPC with public and private subnets across multiple AZs
+- ECS cluster using Fargate for serverless compute
+- 5 microservices: UI, Catalog, Cart, Checkout, Orders
+- Data stores: RDS MariaDB, DynamoDB, ElastiCache Redis, Amazon MQ
+- ECS Service Connect for service-to-service communication
+- Application Load Balancer with health checks
+- CloudWatch Container Insights (Enhanced) for observability
+- CloudWatch Alarms for CPU, memory, and ALB metrics
+- All resources tagged with `ecsdevopsagent=true` for DevOps Agent discovery
+- Optional OpenTelemetry integration
+
+## Cost Warning
+
+This will create resources in your AWS account which will incur costs (~$3-4/hour). You are responsible for these costs. Remember to run `terraform destroy` when finished.
 
 ## Usage
 
