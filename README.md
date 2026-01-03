@@ -9,6 +9,34 @@
 
 ---
 
+## 📚 Index
+
+| Section | Description |
+|---------|-------------|
+| [Overview](#overview) | Lab introduction and learning objectives |
+| [Application Architecture](#application-architecture) | Microservices and infrastructure components |
+| [Quick Start](#quick-start) | Deploy the infrastructure |
+| [AWS DevOps Agent Setup](#aws-devops-agent-setup) | Configure the DevOps Agent |
+| [Troubleshooting Labs](#troubleshooting-labs) | 10 hands-on labs |
+| [Observability](#observability) | CloudWatch monitoring setup |
+| [Cleanup](#cleanup) | Destroy resources |
+
+---
+
+## 🚀 Ready to Deploy?
+
+If you're familiar with ECS and just want to get started:
+
+```bash
+git clone https://github.com/aws-samples/devops-agent-ecs.git
+cd devops-agent-ecs/terraform/ecs/default
+terraform init && terraform apply
+```
+
+**[Skip to Deployment →](#quick-start)**
+
+---
+
 ## Overview
 
 This lab provides a production-ready Amazon ECS deployment environment for learning how to troubleshoot containerized applications using **AWS DevOps Agent**. You'll deploy a multi-service retail store application, inject real faults, and use the DevOps Agent to investigate and resolve issues.
@@ -31,16 +59,6 @@ This lab provides a production-ready Amazon ECS deployment environment for learn
 - Use DevOps Agent to investigate incidents and identify root causes
 - Apply recommended mitigations to resolve issues
 
-## Table of Contents
-
-- [Application Architecture](#application-architecture)
-- [Quick Start](#quick-start)
-- [AWS DevOps Agent Setup](#aws-devops-agent-setup)
-- [Troubleshooting Labs](#troubleshooting-labs)
-- [Fault Injection Scenarios](#fault-injection-scenarios)
-- [Observability](#observability)
-- [Cleanup](#cleanup)
-
 ---
 
 ## Application Architecture
@@ -57,11 +75,13 @@ The lab deploys the **AWS Retail Store Sample Application**, a fully functional 
 
 | Service | Language | Description | Backend |
 |---------|----------|-------------|---------|
-| **[UI](./src/ui/)** | Java (Spring Boot) | Store frontend, serves web pages | Calls other services |
-| **[Catalog](./src/catalog/)** | Go | Product catalog API | RDS MariaDB |
-| **[Cart](./src/cart/)** | Java (Spring Boot) | Shopping cart management | DynamoDB |
-| **[Checkout](./src/checkout/)** | Node.js (NestJS) | Checkout orchestration | ElastiCache Redis |
-| **[Orders](./src/orders/)** | Java (Spring Boot) | Order processing | RDS MariaDB + Amazon MQ |
+| **UI** | Java (Spring Boot) | Store frontend, serves web pages | Calls other services |
+| **Catalog** | Go | Product catalog API | RDS MariaDB |
+| **Cart** | Java (Spring Boot) | Shopping cart management | DynamoDB |
+| **Checkout** | Node.js (NestJS) | Checkout orchestration | ElastiCache Redis |
+| **Orders** | Java (Spring Boot) | Order processing | RDS MariaDB + Amazon MQ |
+
+> **Note:** This lab uses pre-built container images from Amazon ECR. The application source code is available in the [AWS Retail Store Sample App](https://github.com/aws-containers/retail-store-sample-app) repository.
 
 ### Infrastructure Components
 
@@ -489,7 +509,7 @@ What security groups are attached to the catalog service and the RDS database?
 
 **Inject:**
 ```bash
-./fault-injection/inject-cpu-stress.sh
+./labs/lab7-cpu-stress/inject.sh
 ```
 
 **Symptoms:**
@@ -509,7 +529,7 @@ Show me the CPU metrics for the catalog service from Container Insights
 
 **Rollback:**
 ```bash
-./fault-injection/rollback-cpu-stress.sh
+./labs/lab7-cpu-stress/rollback.sh
 # Or wait 5 minutes for auto-rollback
 ```
 
@@ -521,7 +541,7 @@ Show me the CPU metrics for the catalog service from Container Insights
 
 **Inject:**
 ```bash
-./fault-injection/inject-memory-stress.sh
+./labs/lab8-memory-stress/inject.sh
 ```
 
 **Symptoms:**
@@ -541,7 +561,7 @@ Are there any OOM killed tasks for the carts service?
 
 **Rollback:**
 ```bash
-./fault-injection/rollback-memory-stress.sh
+./labs/lab8-memory-stress/rollback.sh
 # Or wait 5 minutes for auto-rollback
 ```
 
@@ -553,7 +573,7 @@ Are there any OOM killed tasks for the carts service?
 
 **Inject:**
 ```bash
-./fault-injection/inject-dynamodb-latency.sh
+./labs/lab9-dynamodb-latency/inject.sh
 ```
 
 **Symptoms:**
@@ -573,7 +593,7 @@ Show me the DynamoDB latency metrics for the carts table
 
 **Rollback:**
 ```bash
-./fault-injection/rollback-dynamodb-latency.sh
+./labs/lab9-dynamodb-latency/rollback.sh
 # Or wait 5 minutes for auto-rollback
 ```
 
@@ -585,7 +605,7 @@ Show me the DynamoDB latency metrics for the carts table
 
 **Inject:**
 ```bash
-./fault-injection/inject-rds-stress.sh
+./labs/lab10-rds-stress/inject.sh
 ```
 
 **Symptoms:**
@@ -612,15 +632,14 @@ Show me the RDS CPU utilization and database connections metrics
 
 ## Fault Injection Scenarios
 
-The `fault-injection/` directory contains scripts for chaos engineering experiments:
+The `labs/` directory contains all lab scripts organized by lab number:
 
-| Scenario | Inject Script | Rollback Script | Target | Duration |
-|----------|---------------|-----------------|--------|----------|
-| CPU Stress | `inject-cpu-stress.sh` | `rollback-cpu-stress.sh` | catalog | 5 min |
-| Memory Stress | `inject-memory-stress.sh` | `rollback-memory-stress.sh` | carts | 5 min |
-| DynamoDB Latency | `inject-dynamodb-latency.sh` | `rollback-dynamodb-latency.sh` | carts | 5 min |
-| RDS Security Group Block | `inject-rds-sg-block.sh` | `rollback-rds-sg-block.sh` | catalog, orders | Manual |
-| RDS Stress | `inject-rds-stress.sh` | (auto-terminates) | catalog | 2 min |
+| Lab | Inject Script | Rollback Script | Target | Duration |
+|-----|---------------|-----------------|--------|----------|
+| Lab 7 | `labs/lab7-cpu-stress/inject.sh` | `labs/lab7-cpu-stress/rollback.sh` | catalog | 5 min |
+| Lab 8 | `labs/lab8-memory-stress/inject.sh` | `labs/lab8-memory-stress/rollback.sh` | carts | 5 min |
+| Lab 9 | `labs/lab9-dynamodb-latency/inject.sh` | `labs/lab9-dynamodb-latency/rollback.sh` | carts | 5 min |
+| Lab 10 | `labs/lab10-rds-stress/inject.sh` | (auto-terminates) | catalog | 2 min |
 
 ### Environment Variables
 

@@ -1,23 +1,27 @@
 # Troubleshooting Labs
 
-This directory contains inject/fix scripts for the configuration-based troubleshooting labs (Labs 1-6).
+This directory contains all lab scripts for the ECS DevOps Agent troubleshooting workshop.
 
 ## Lab Overview
 
-| Lab | Directory | Issue | Target Service |
-|-----|-----------|-------|----------------|
-| 1 | `lab1-logs-not-delivered/` | CloudWatch Logs Not Delivered | catalog |
-| 2 | `lab2-secrets-access-denied/` | Unable to Pull Secrets | orders |
-| 3 | `lab3-health-check-failures/` | Health Check Failures | ui |
-| 4 | `lab4-service-discovery-broken/` | Service Connect Broken | ui |
-| 5 | `lab5-task-resource-limits/` | Task Resource Limits (OOM) | checkout |
-| 6 | `lab6-security-group-blocked/` | Security Group Blocked | catalog → RDS |
+| Lab | Directory | Issue | Target | Type |
+|-----|-----------|-------|--------|------|
+| 1 | `lab1-logs-not-delivered/` | CloudWatch Logs Not Delivered | catalog | Configuration |
+| 2 | `lab2-secrets-access-denied/` | Unable to Pull Secrets | orders | Configuration |
+| 3 | `lab3-health-check-failures/` | Health Check Failures | ui | Configuration |
+| 4 | `lab4-service-discovery-broken/` | Service Connect Broken | ui | Configuration |
+| 5 | `lab5-task-resource-limits/` | Task Resource Limits (OOM) | checkout | Configuration |
+| 6 | `lab6-security-group-blocked/` | Security Group Blocked | catalog → RDS | Configuration |
+| 7 | `lab7-cpu-stress/` | CPU Stress | catalog | Performance |
+| 8 | `lab8-memory-stress/` | Memory Stress | carts | Performance |
+| 9 | `lab9-dynamodb-latency/` | DynamoDB Latency | carts | Performance |
+| 10 | `lab10-rds-stress/` | RDS Stress | catalog | Performance |
 
 ## Usage
 
-Each lab has two scripts:
+Each lab has scripts:
 - `inject.sh` - Introduces the fault
-- `fix.sh` - Restores the original configuration
+- `fix.sh` or `rollback.sh` - Restores the original configuration
 
 ### Running a Lab
 
@@ -40,18 +44,15 @@ cd devops-agent-ecs
 |----------|---------|-------------|
 | `CLUSTER_NAME` | `retail-store-ecs-cluster` | ECS cluster name |
 | `AWS_REGION` | `us-east-1` | AWS region |
+| `STRESS_DURATION` | `300` | Duration in seconds (performance labs) |
+| `CPU_WORKERS` | `2` | Number of CPU stress workers |
+| `MEMORY_PERCENT` | `80` | Target memory percentage |
+| `LATENCY_MS` | `500` | Network latency in milliseconds |
 
-## Performance Labs (7-10)
+## Lab Types
 
-For performance-based labs, use the scripts in `../fault-injection/`:
+### Configuration Labs (1-6)
+These modify ECS task definitions, IAM policies, or security groups to simulate misconfigurations. Use `fix.sh` to restore.
 
-| Lab | Inject Script | Rollback Script |
-|-----|---------------|-----------------|
-| 7 | `inject-cpu-stress.sh` | `rollback-cpu-stress.sh` |
-| 8 | `inject-memory-stress.sh` | `rollback-memory-stress.sh` |
-| 9 | `inject-dynamodb-latency.sh` | `rollback-dynamodb-latency.sh` |
-| 10 | `inject-rds-stress.sh` | (auto-terminates) |
-
-## Backup Files
-
-Each inject script creates backups in `/tmp/labN_backup/` for restoration.
+### Performance Labs (7-10)
+These inject real faults using ECS Exec (stress-ng, tc). Use `rollback.sh` to restore, or wait for auto-timeout.
