@@ -1,5 +1,9 @@
 ![Banner](./docs/images/banner.png)
 
+> ⚠️ **Disclaimer:** This repository includes intentional fault injection and stress test scenarios designed to demonstrate the AWS DevOps Agent's investigation capabilities. These scripts deliberately introduce issues such as memory leaks, network partitions, database stress, and service latency. **Do not run these scripts in production environments.** They are intended for learning and demonstration purposes only.
+>
+> 📦 **Source Code:** The source code for the Retail Store Sample Application can be found at: https://github.com/aws-containers/retail-store-sample-app
+
 <div align="center">
   <strong>
   <h2>AWS DevOps Agent - ECS Troubleshooting Lab</h2>
@@ -195,27 +199,29 @@ The agent uses a **dual-console architecture**:
 ### Step 1: Create an Agent Space
 
 1. Navigate to the [AWS DevOps Agent Console](https://console.aws.amazon.com/devops-agent/home?region=us-east-1)
-2. Click **Create Agent Space**
+2. Click **Begin setup**
 3. Enter details:
    - **Name:** `retail-store-ecs-lab`
    - **Description:** Agent Space for ECS Troubleshooting Lab
 
 ### Step 2: Configure IAM Roles
 
-1. In **Give this Agent Space AWS resource access**, select **Auto-create a new AWS DevOps Agent role**
-2. Click **Next**
+1. In **Give this Agent Space AWS resource access**, select **Create role**
+2. (Optional) Update the Agent Space role name to be created
 
-### Step 3: Configure Resource Discovery
+### Step 3: Configure Resource Discovery with Tags
 
-1. In **Using AWS tags for resource discovery**, click **Add tag**
+Since this lab uses Terraform (not CloudFormation), you need to add a tag so the agent can discover your resources.
+
+1. In the **Include AWS tags** section, click **Add tag**
 2. Add tag: `ecsdevopsagent` = `true`
 
 This tag enables the DevOps Agent to discover all lab resources including ECS cluster, services, RDS databases, DynamoDB tables, and related infrastructure.
 
 ### Step 4: Enable Web App
 
-1. In **Enabling the Agent Space Web App**, select **Enable**
-2. Select **Auto-create a new AWS DevOps Agent role**
+1. In **Enabling the Agent Space Web App**, select **Auto-create a new AWS DevOps Agent role**
+2. Review the permissions that will be granted to the role
 3. Click **Submit**
 
 ### Step 5: Verify Setup
