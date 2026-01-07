@@ -1,5 +1,5 @@
 #!/bin/bash
-# ECS DynamoDB Latency Rollback Script
+# Lab 9: DynamoDB Latency - Fix Script
 # Removes tc network latency rules from the container
 
 set -e
@@ -8,7 +8,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-retail-store-ecs-cluster}"
 SERVICE_NAME="${SERVICE_NAME:-carts}"
 REGION="${AWS_REGION:-us-east-1}"
 
-echo "=== ECS DynamoDB Latency Rollback ==="
+echo "=== Lab 9: DynamoDB Latency - Fix ==="
 echo "Cluster: $CLUSTER_NAME"
 echo "Service: $SERVICE_NAME"
 echo ""
@@ -50,4 +50,10 @@ aws ecs execute-command \
   --command "/bin/sh -c 'tc qdisc del dev eth0 root 2>/dev/null && echo \"Latency rules removed\" || echo \"No latency rules found\"'"
 
 echo ""
-echo "=== DynamoDB Latency Rollback Complete ==="
+echo "=== Lab 9 Fix Complete ==="
+echo ""
+echo "Network latency rules have been removed."
+echo "DynamoDB operations should return to normal latency."
+echo ""
+echo "Verify by testing the carts service:"
+echo "  curl -s \$(terraform output -raw ui_service_url)/cart"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# ECS CPU Stress Rollback Script
+# Lab 7: CPU Stress - Fix Script
 # Kills stress-ng processes in the container
 
 set -e
@@ -8,7 +8,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-retail-store-ecs-cluster}"
 SERVICE_NAME="${SERVICE_NAME:-catalog}"
 REGION="${AWS_REGION:-us-east-1}"
 
-echo "=== ECS CPU Stress Rollback ==="
+echo "=== Lab 7: CPU Stress - Fix ==="
 echo "Cluster: $CLUSTER_NAME"
 echo "Service: $SERVICE_NAME"
 echo ""
@@ -50,4 +50,13 @@ aws ecs execute-command \
   --command "/bin/sh -c 'pkill -9 stress-ng 2>/dev/null && echo \"Stress processes killed\" || echo \"No stress processes found\"'"
 
 echo ""
-echo "=== CPU Stress Rollback Complete ==="
+echo "=== Lab 7 Fix Complete ==="
+echo ""
+echo "CPU stress processes have been killed."
+echo "CPU utilization should return to normal within a few minutes."
+echo ""
+echo "Verify with:"
+echo "  aws cloudwatch get-metric-statistics --namespace AWS/ECS \\"
+echo "    --metric-name CPUUtilization --dimensions Name=ServiceName,Value=$SERVICE_NAME \\"
+echo "    --start-time \$(date -u -v-10M '+%Y-%m-%dT%H:%M:%SZ') --end-time \$(date -u '+%Y-%m-%dT%H:%M:%SZ') \\"
+echo "    --period 60 --statistics Average"
