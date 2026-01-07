@@ -1,6 +1,7 @@
 #!/bin/bash
 # Lab 5: Task Resource Limits (OOM) - Inject Script
-# This script modifies the checkout service task definition to use extremely low memory limits
+# This script modifies the checkout service to trigger OOM by adding memory stress
+# Note: Fargate minimum memory is 512MB, so we use stress to exceed the limit
 
 set -e
 
@@ -35,20 +36,41 @@ aws ecs describe-task-definition \
   --region $REGION \
   --query 'taskDefinition' > $BACKUP_DIR/original_task_def.json
 
-# Save original memory settings
+# Save original settings
 ORIGINAL_MEMORY=$(cat $BACKUP_DIR/original_task_def.json | jq -r '.memory // .containerDefinitions[0].memory')
 echo "$ORIGINAL_MEMORY" > $BACKUP_DIR/original_memory.txt
 echo "  Original memory: ${ORIGINAL_MEMORY}MB"
 
-# Step 3: Create modified task definition with low memory
-echo "[3/4] Creating modified task definition with low memory (128MB)..."
-LOW_MEMORY="128"
+# Step 3: Create modified task definition with memory stress sidecar
+echo "[3/4] Creating modified task definition with memory stress..."
 
-cat $BACKUP_DIR/original_task_def.json | jq --arg mem "$LOW_MEMORY" '
+# Add a stress sidecar container that will consume memory and cause OOM
+# The main container stays the same, but the sidecar eats all available memory
+# Get task memory limit and calculate stress amount to exceed it
+TASK_MEMORY=$(cat $BACKUP_DIR/original_task_def.json | jq -r '.memory')
+STRESS_MEMORY=$((TASK_MEMORY + 512))  # Request more than task limit to guarantee OOM
+
+# Remove any existing memory-stress container first, then add fresh one
+cat $BACKUP_DIR/original_task_def.json | jq --arg stress_mem "${STRESS_MEMORY}M" '
   del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
-  .memory = $mem |
-  .containerDefinitions[0].memory = ($mem | tonumber)
+  .containerDefinitions = [.containerDefinitions[] | select(.name != "memory-stress")] |
+  .containerDefinitions += [{
+    "name": "memory-stress",
+    "image": "polinux/stress",
+    "essential": true,
+    "command": ["stress", "--vm", "1", "--vm-bytes", $stress_mem, "--vm-hang", "0"],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": .containerDefinitions[0].logConfiguration.options["awslogs-group"],
+        "awslogs-region": .containerDefinitions[0].logConfiguration.options["awslogs-region"],
+        "awslogs-stream-prefix": "memory-stress"
+      }
+    }
+  }]
 ' > $BACKUP_DIR/broken_task_def.json
+
+echo "  Task memory: ${TASK_MEMORY}MB, Stress will request: ${STRESS_MEMORY}MB"
 
 # Register new task definition
 NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
@@ -72,10 +94,10 @@ aws ecs update-service \
 echo ""
 echo "=== Lab 5 Injection Complete ==="
 echo ""
-echo "Issue injected: Checkout service memory reduced to 128MB (was ${ORIGINAL_MEMORY}MB)"
+echo "Issue injected: Added memory-stress sidecar that requests ${STRESS_MEMORY}MB (task limit: ${ORIGINAL_MEMORY}MB)"
 echo ""
 echo "Expected symptoms:"
-echo "  - Tasks crash immediately after starting"
+echo "  - Tasks crash shortly after starting due to OOM"
 echo "  - Exit code 137 (OOM kill: 128 + 9 SIGKILL)"
 echo "  - Checkout unavailable - customers cannot complete purchases"
 echo "  - Rapid task cycling as ECS keeps trying to start new tasks"

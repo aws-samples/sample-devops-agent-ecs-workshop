@@ -13,7 +13,7 @@ This directory contains all lab scripts for the ECS DevOps Agent troubleshooting
 | 5 | `lab5-task-resource-limits/` | Task Resource Limits (OOM) | checkout | Configuration |
 | 6 | `lab6-security-group-blocked/` | Security Group Blocked | catalog → RDS | Configuration |
 | 7 | `lab7-cpu-stress/` | CPU Stress | catalog | Performance |
-| 8 | `lab8-memory-stress/` | Memory Stress | carts | Performance |
+| 8 | `lab8-autoscaling-broken/` | Auto-Scaling Not Working | ui | Performance |
 | 9 | `lab9-dynamodb-latency/` | DynamoDB Latency | carts | Performance |
 | 10 | `lab10-rds-stress/` | RDS Stress | catalog | Performance |
 

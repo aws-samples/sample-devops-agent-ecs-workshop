@@ -1,6 +1,6 @@
 #!/bin/bash
 # Lab 5: Task Resource Limits (OOM) - Fix Script
-# This script restores the checkout service task definition with proper memory limits
+# This script restores the checkout service task definition by removing the memory stress sidecar
 
 set -e
 
@@ -24,12 +24,13 @@ fi
 # Step 1: Get original memory
 echo "[1/2] Reading original configuration..."
 ORIGINAL_MEMORY=$(cat $BACKUP_DIR/original_memory.txt)
-echo "  Restoring memory to: ${ORIGINAL_MEMORY}MB"
+echo "  Restoring original task definition (memory: ${ORIGINAL_MEMORY}MB, no stress sidecar)"
 
 # Step 2: Register restored task definition
 echo "[2/2] Registering restored task definition..."
 cat $BACKUP_DIR/original_task_def.json | jq '
-  del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+  del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+  .containerDefinitions = [.containerDefinitions[] | select(.name != "memory-stress")]
 ' > $BACKUP_DIR/restored_task_def.json
 
 RESTORED_TASK_DEF_ARN=$(aws ecs register-task-definition \
@@ -52,7 +53,7 @@ aws ecs update-service \
 echo ""
 echo "=== Lab 5 Fix Complete ==="
 echo ""
-echo "The checkout service has been restored with proper memory limits."
+echo "The checkout service has been restored (memory-stress sidecar removed)."
 echo "Tasks should start and stay running within 1-2 minutes."
 echo ""
 echo "Verify with:"

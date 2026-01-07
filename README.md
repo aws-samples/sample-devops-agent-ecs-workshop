@@ -298,7 +298,7 @@ These labs inject real performance issues to simulate production incidents:
 | Lab | Issue | Service | Difficulty |
 |-----|-------|---------|------------|
 | [Lab 7](#lab-7-cpu-stress) | CPU Stress | Catalog | Intermediate |
-| [Lab 8](#lab-8-memory-stress) | Memory Stress | Carts | Intermediate |
+| [Lab 8](#lab-8-auto-scaling-not-working) | Auto-Scaling Not Working | UI | Intermediate |
 | [Lab 9](#lab-9-dynamodb-latency) | DynamoDB Latency | Carts | Advanced |
 | [Lab 10](#lab-10-rds-stress) | RDS Stress | Catalog | Advanced |
 
@@ -448,7 +448,7 @@ How does the UI service connect to the catalog service?
 
 ### Lab 5: Task Resource Limits (OOM)
 
-**Scenario:** The checkout service is crashing repeatedly. Tasks start but crash within seconds with exit code 137.
+**Scenario:** The checkout service is crashing repeatedly. Tasks start but crash within seconds due to memory exhaustion.
 
 **Inject:**
 ```bash
@@ -456,19 +456,23 @@ How does the UI service connect to the catalog service?
 ```
 
 **Symptoms:**
-- Tasks crash immediately
-- Exit code 137 (OOM kill)
-- Checkout unavailable
+- Tasks crash shortly after starting
+- Container shows `OutOfMemoryError: Container killed due to memory usage`
+- Checkout unavailable - customers cannot complete purchases
+- Rapid task cycling as ECS keeps trying to start new tasks
 
 **Investigation Prompts:**
 ```
 Why is the checkout service crashing? The tasks keep restarting.
 ```
 ```
-What's the exit code for the stopped checkout tasks?
+What is the exit code for the stopped checkout tasks? Is it an OOM kill?
+```
+```
+Show me the memory configuration for the checkout service task definition
 ```
 
-**Root Cause:** Memory limit set too low (128MB instead of 2048MB). Exit code 137 = 128 + 9 (SIGKILL from OOM).
+**Root Cause:** A memory-stress sidecar container is consuming more memory than the task limit allows, causing OOM kills.
 
 **Fix:**
 ```bash
@@ -541,34 +545,37 @@ Show me the CPU metrics for the catalog service from Container Insights
 
 ---
 
-### Lab 8: Memory Stress
+### Lab 8: Auto-Scaling Not Working
 
-**Scenario:** The shopping cart service is experiencing intermittent failures. Users report losing items from their carts.
+**Scenario:** The UI service is experiencing high CPU load during a traffic spike. Auto-scaling should kick in to add more tasks, but the service isn't scaling. Users are complaining about slow response times.
 
 **Inject:**
 ```bash
-./labs/lab8-memory-stress/inject.sh
+./labs/lab8-autoscaling-broken/inject.sh
 ```
 
 **Symptoms:**
-- High memory utilization
-- Potential OOM kills (exit code 137)
-- Intermittent cart failures
+- High CPU utilization visible in CloudWatch metrics
+- CloudWatch alarm in ALARM state
+- Service does NOT scale out (stays at current task count)
+- Application becomes slow/unresponsive
 
 **Investigation Prompts:**
 ```
-The carts service seems unstable. Is there a memory issue?
+Why isn't my ECS service scaling even though CPU is high?
 ```
 ```
-Are there any OOM killed tasks for the carts service?
+Check the auto-scaling configuration for the UI service
+```
+```
+Show me the CloudWatch alarms for the UI service. Are the alarm actions enabled?
 ```
 
-**Root Cause:** `stress-ng` memory workers consuming ~80% of available memory.
+**Root Cause:** CloudWatch alarm actions are disabled, so even though the alarm fires, it doesn't trigger the scaling policy.
 
-**Rollback:**
+**Fix:**
 ```bash
-./labs/lab8-memory-stress/rollback.sh
-# Or wait 5 minutes for auto-rollback
+./labs/lab8-autoscaling-broken/fix.sh
 ```
 
 ---
@@ -643,7 +650,7 @@ The `labs/` directory contains all lab scripts organized by lab number:
 | Lab | Inject Script | Rollback Script | Target | Duration |
 |-----|---------------|-----------------|--------|----------|
 | Lab 7 | `labs/lab7-cpu-stress/inject.sh` | `labs/lab7-cpu-stress/rollback.sh` | catalog | 5 min |
-| Lab 8 | `labs/lab8-memory-stress/inject.sh` | `labs/lab8-memory-stress/rollback.sh` | carts | 5 min |
+| Lab 8 | `labs/lab8-autoscaling-broken/inject.sh` | `labs/lab8-autoscaling-broken/fix.sh` | ui | Until fixed |
 | Lab 9 | `labs/lab9-dynamodb-latency/inject.sh` | `labs/lab9-dynamodb-latency/rollback.sh` | carts | 5 min |
 | Lab 10 | `labs/lab10-rds-stress/inject.sh` | (auto-terminates) | catalog | 2 min |
 
