@@ -27,13 +27,25 @@
 
 ---
 
+## ⚠️ Important: Platform Requirements
+
+> **The lab scripts (inject/fix) require a Linux/macOS bash environment.** 
+>
+> **Windows Users:** The fault injection scripts are shell scripts that will not run natively on Windows. You have two options:
+> 1. **Recommended:** Use [AWS CloudShell](https://console.aws.amazon.com/cloudshell) - a browser-based shell with AWS CLI pre-installed
+> 2. **Alternative:** Use WSL2 (Windows Subsystem for Linux), Git Bash, or SSH into a Linux EC2 instance
+>
+> Terraform commands can be run from any terminal (Windows PowerShell, CMD, or Linux/macOS).
+
+---
+
 ## 🚀 Ready to Deploy?
 
 If you're familiar with ECS and just want to get started:
 
 ```bash
-git clone https://github.com/aws-samples/devops-agent-ecs.git
-cd devops-agent-ecs/terraform/ecs/default
+git clone https://github.com/aws-samples/sample-devops-agent-ecs-workshop.git
+cd sample-devops-agent-ecs-workshop/terraform/ecs/default
 terraform init && terraform apply
 ```
 
@@ -114,16 +126,19 @@ All resources are tagged with `ecsdevopsagent=true` to enable AWS DevOps Agent d
 
 ### Prerequisites
 
-1. **AWS CLI** - Installed and configured with appropriate credentials
-2. **Terraform** >= 1.0 - [Installation guide](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
-3. **Session Manager Plugin** - Required for ECS Exec ([Installation guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html))
-4. **AWS Permissions** - Administrator access or permissions for ECS, EC2, RDS, DynamoDB, ElastiCache, Amazon MQ, CloudWatch, IAM, ALB
+1. **Git** - [Installation guide](https://git-scm.com/downloads)
+2. **AWS CLI** - Installed and configured with appropriate credentials ([Installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
+3. **Terraform** >= 1.0 - [Installation guide](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
+4. **Session Manager Plugin** - Required for ECS Exec ([Installation guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html))
+5. **jq** - JSON processor for lab scripts ([Installation guide](https://jqlang.github.io/jq/download/))
+6. **AWS Permissions** - **Administrator access recommended**. The lab creates multiple AWS resources (ECS, RDS, DynamoDB, ElastiCache, Amazon MQ, VPC, IAM roles, etc.). Using limited permissions may result in deployment failures.
+7. **Bash Shell** (for lab scripts) - macOS/Linux terminal, [AWS CloudShell](https://console.aws.amazon.com/cloudshell), WSL2, or Git Bash on Windows
 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/aws-samples/devops-agent-ecs.git
-cd devops-agent-ecs
+git clone https://github.com/aws-samples/sample-devops-agent-ecs-workshop.git
+cd sample-devops-agent-ecs-workshop
 ```
 
 ### Step 2: Deploy Infrastructure
@@ -145,9 +160,30 @@ terraform apply
 
 ### Step 3: Verify Deployment
 
+After Terraform completes, it displays output values including the application URL:
+
+```
+Outputs:
+
+ecs_cluster_name = "retail-store-ecs-cluster"
+ui_service_url = "http://retail-xxxxx.us-east-1.elb.amazonaws.com"
+```
+
+**Verify the application is running:**
+
+1. Copy the `ui_service_url` from the Terraform output
+2. Open it in your browser - you should see the Retail Store home page
+3. Verify services in the [ECS Console](https://console.aws.amazon.com/ecs) → Clusters → `retail-store-ecs-cluster` → Services
+
+You should see all 5 services running with 1/1 tasks:
+
+![ECS Services](./docs/images/services.png)
+
+**Optional: Verify via CLI (Linux/macOS/CloudShell only)**
+
 ```bash
 # Get application URL
-export APP_URL=$(terraform output -raw ui_service_url)
+APP_URL=$(terraform output -raw ui_service_url)
 echo "Application URL: $APP_URL"
 
 # Test the application
@@ -161,10 +197,6 @@ aws ecs describe-services \
   --output table
 ```
 
-You should see all 5 services running:
-
-![ECS Services](./docs/images/services.png)
-
 ### Step 4: Access the Application
 
 Open the `APP_URL` in your browser. You should see the Retail Store home page.
@@ -177,8 +209,6 @@ Test the application by:
 - **Cart** - Add/remove items (powered by Carts service)
 - **Checkout** - Complete your purchase (powered by Checkout service)
 - **Orders** - Order confirmation (powered by Orders service)
-
-> **Tip:** Keep this URL handy - you'll use it throughout the troubleshooting labs to observe the impact of injected faults.
 
 ---
 
@@ -199,15 +229,16 @@ The agent uses a **dual-console architecture**:
 ### Step 1: Create an Agent Space
 
 1. Navigate to the [AWS DevOps Agent Console](https://console.aws.amazon.com/devops-agent/home?region=us-east-1)
-2. Click **Begin setup**
+2. Click **Begin setup** (or **Create Agent Space** if you have existing spaces)
 3. Enter details:
    - **Name:** `retail-store-ecs-lab`
    - **Description:** Agent Space for ECS Troubleshooting Lab
 
 ### Step 2: Configure IAM Roles
 
-1. In **Give this Agent Space AWS resource access**, select **Create role**
-2. (Optional) Update the Agent Space role name to be created
+1. In **Give this Agent Space AWS resource access**, select **Auto-create a new DevOps Agent role**
+2. Review the permissions that will be granted to the role
+3. (Optional) Customize the role name if desired
 
 ### Step 3: Configure Resource Discovery with Tags
 
@@ -218,11 +249,12 @@ Since this lab uses Terraform (not CloudFormation), you need to add a tag so the
 
 This tag enables the DevOps Agent to discover all lab resources including ECS cluster, services, RDS databases, DynamoDB tables, and related infrastructure.
 
-### Step 4: Enable Web App
+### Step 4: Enable Web App Access
 
 1. In **Enabling the Agent Space Web App**, select **Auto-create a new AWS DevOps Agent role**
-2. Review the permissions that will be granted to the role
-3. Click **Submit**
+2. Review the permissions that will be granted
+3. Leave other settings as default
+4. Click **Create**
 
 ### Step 5: Verify Setup
 
@@ -239,7 +271,9 @@ You should see the following resources discovered:
 - **ElastiCache**: checkout-redis
 - **Amazon MQ**: RabbitMQ broker
 
-### Verify Resource Discovery
+### Verify Resource Discovery (Optional - CLI)
+
+> **Note:** These commands require a bash shell (Linux/macOS/CloudShell)
 
 ```bash
 # Verify ECS cluster tags
@@ -261,7 +295,8 @@ From the DevOps Agent Web App:
    ```
    Check the health of my ECS services in the retail-store-ecs-cluster
    ```
-3. The agent will analyze your infrastructure and provide insights
+3. Leave other options as default and click **Start Investigating**
+4. The agent will analyze your infrastructure and provide insights
 
 ### Safety Mechanisms
 
@@ -276,6 +311,14 @@ From the DevOps Agent Web App:
 
 ## Troubleshooting Labs
 
+> **⚠️ Windows Users:** The lab scripts require a bash shell environment. Use one of these options:
+> - **[AWS CloudShell](https://console.aws.amazon.com/cloudshell)** (Recommended) - Browser-based, no setup required
+> - **WSL2** (Windows Subsystem for Linux)
+> - **Git Bash** (comes with Git for Windows)
+> - **SSH into a Linux EC2 instance**
+>
+> Before running lab scripts, ensure you have `jq` installed: `jq --version`
+
 The labs are organized into two categories:
 
 ### Configuration Labs (Labs 1-6)
@@ -287,9 +330,9 @@ These labs focus on common ECS misconfigurations that cause service failures:
 | [Lab 1](#lab-1-cloudwatch-logs-not-delivered) | CloudWatch Logs Not Delivered | Catalog | Basic |
 | [Lab 2](#lab-2-unable-to-pull-secrets) | Unable to Pull Secrets | Orders | Basic |
 | [Lab 3](#lab-3-health-check-failures) | Health Check Failures | UI | Basic |
-| [Lab 4](#lab-4-service-connect-broken) | Service Connect Communication Broken | UI | Intermediate |
+| [Lab 4](#lab-4-security-group-blocked) | Security Group Blocked (Database Connectivity) | Catalog → RDS | Intermediate |
 | [Lab 5](#lab-5-task-resource-limits-oom) | Task Resource Limits (OOM) | Checkout | Intermediate |
-| [Lab 6](#lab-6-security-group-blocked) | Security Group Blocked | Catalog → RDS | Intermediate |
+| [Lab 6](#lab-6-service-connect-broken) | Service Connect Communication Broken | UI → Catalog | Intermediate |
 
 ### Performance Labs (Labs 7-10)
 
@@ -298,9 +341,9 @@ These labs inject real performance issues to simulate production incidents:
 | Lab | Issue | Service | Difficulty |
 |-----|-------|---------|------------|
 | [Lab 7](#lab-7-cpu-stress) | CPU Stress | Catalog | Intermediate |
-| [Lab 8](#lab-8-auto-scaling-not-working) | Auto-Scaling Not Working | UI | Intermediate |
-| [Lab 9](#lab-9-dynamodb-latency) | DynamoDB Latency | Carts | Advanced |
-| [Lab 10](#lab-10-rds-stress) | RDS Stress | Catalog | Advanced |
+| [Lab 8](#lab-8-ddos-attack-simulation) | DDoS Attack Simulation | UI/ALB | Advanced |
+| [Lab 9](#lab-9-dynamodb-attack) | DynamoDB Attack | Carts | Advanced |
+| [Lab 10](#lab-10-auto-scaling-not-working) | Auto-Scaling Not Working | Catalog | Intermediate |
 
 ### Lab Workflow
 
@@ -415,33 +458,34 @@ What health check configuration is the UI service using?
 
 ---
 
-### Lab 4: Service Connect Broken
+### Lab 4: Security Group Blocked
 
-**Scenario:** The UI loads but the product catalog is empty. The catalog service appears healthy but the UI can't communicate with it.
+**Scenario:** The product catalog stopped loading. The catalog service is running but returns errors when fetching products. Database connection timeouts appear in the logs.
 
 **Inject:**
 ```bash
-./labs/lab4-service-discovery-broken/inject.sh
+./labs/lab4-security-group-blocked/inject.sh
 ```
 
 **Symptoms:**
-- UI loads but catalog is empty
-- Catalog service is healthy
-- UI logs show connection errors
+- Catalog returns errors
+- Service is running and healthy
+- Database connection timeouts in logs
+- RDS appears healthy
 
 **Investigation Prompts:**
 ```
-The product catalog is empty but the catalog service looks healthy. What's wrong?
+The catalog service can't connect to the database. What's wrong?
 ```
 ```
-How does the UI service connect to the catalog service?
+What security groups are attached to the catalog service and the RDS database?
 ```
 
-**Root Cause:** UI service environment variable points to wrong endpoint (`http://catalog-broken` instead of `http://catalog`).
+**Root Cause:** RDS security group is missing ingress rule allowing traffic from catalog service on port 3306.
 
 **Fix:**
 ```bash
-./labs/lab4-service-discovery-broken/fix.sh
+./labs/lab4-security-group-blocked/fix.sh
 ```
 
 ---
@@ -481,34 +525,33 @@ Show me the memory configuration for the checkout service task definition
 
 ---
 
-### Lab 6: Security Group Blocked
+### Lab 6: Service Connect Broken
 
-**Scenario:** The product catalog stopped loading. The catalog service is running but returns errors when fetching products.
+**Scenario:** The UI loads but the product catalog is empty. The catalog service appears healthy but the UI can't communicate with it.
 
 **Inject:**
 ```bash
-./labs/lab6-security-group-blocked/inject.sh
+./labs/lab6-service-connect-broken/inject.sh
 ```
 
 **Symptoms:**
-- Catalog returns errors
-- Service is running and healthy
-- Database connection timeouts in logs
-- RDS appears healthy
+- UI loads but catalog is empty
+- Catalog service is healthy
+- UI logs show connection errors
 
 **Investigation Prompts:**
 ```
-The catalog service can't connect to the database. What's wrong?
+The product catalog is empty but the catalog service looks healthy. What's wrong?
 ```
 ```
-What security groups are attached to the catalog service and the RDS database?
+How does the UI service connect to the catalog service?
 ```
 
-**Root Cause:** RDS security group is missing ingress rule allowing traffic from catalog service on port 3306.
+**Root Cause:** UI service environment variable points to wrong endpoint (`http://catalog-broken` instead of `http://catalog`).
 
 **Fix:**
 ```bash
-./labs/lab6-security-group-blocked/fix.sh
+./labs/lab6-service-connect-broken/fix.sh
 ```
 
 ---
@@ -545,13 +588,80 @@ Show me the CPU metrics for the catalog service from Container Insights
 
 ---
 
-### Lab 8: Auto-Scaling Not Working
+### Lab 8: DDoS Attack Simulation
 
-**Scenario:** The UI service is experiencing high CPU load during a traffic spike. Auto-scaling should kick in to add more tasks, but the service isn't scaling. Users are complaining about slow response times.
+**Scenario:** The retail application is under attack! Users are reporting extremely slow page loads and timeouts. ALB metrics show a massive spike in request count - far beyond normal traffic levels.
 
 **Inject:**
 ```bash
-./labs/lab8-autoscaling-broken/inject.sh
+./labs/lab8-ddos-simulation/inject.sh
+```
+
+**Symptoms:**
+- Slow page loads and timeouts
+- ALB RequestCount through the roof (~300 req/s attack traffic)
+- 5XX errors increasing
+- Rogue ECS tasks running `http-flood-attack`
+
+**Investigation Prompts:**
+```
+The retail app is extremely slow. Users are complaining about timeouts. What's happening?
+```
+```
+We're seeing a massive traffic spike on the ALB. Is this a DDoS attack?
+```
+
+**Root Cause:** Rogue ECS tasks flooding the ALB with HTTP requests using curl and GNU parallel.
+
+**Rollback:**
+```bash
+./labs/lab8-ddos-simulation/fix.sh
+```
+
+---
+
+### Lab 9: DynamoDB Attack
+
+**Scenario:** The shopping cart service is completely broken. Users cannot add items to cart - all operations are failing with throttling errors. CloudWatch shows massive spikes in DynamoDB ThrottledRequests. This looks like a DDoS attack on the database!
+
+**Inject:**
+```bash
+./labs/lab9-dynamodb-attack/inject.sh
+```
+
+**Symptoms:**
+- Cart operations failing with throttling errors
+- Massive ThrottledRequests spike in CloudWatch
+- Rogue ECS tasks running `dynamodb-stress-attack`
+- Service returning 500 errors
+
+**Investigation Prompts:**
+```
+The carts service is completely broken. Users can't add items to cart. Check DynamoDB for issues.
+```
+```
+DynamoDB is being throttled heavily. What's consuming all the read capacity?
+```
+```
+Are there any suspicious ECS tasks running that might be attacking DynamoDB?
+```
+
+**Root Cause:** Rogue ECS tasks flooding DynamoDB with scan requests. Table switched to low provisioned capacity (5 RCU) which is easily overwhelmed.
+
+**Rollback:**
+```bash
+./labs/lab9-dynamodb-attack/fix.sh
+```
+
+---
+
+### Lab 10: Auto-Scaling Not Working
+
+**Scenario:** The catalog service is experiencing high CPU load during a traffic spike. Auto-scaling should kick in to add more tasks, but the service isn't scaling. Users are complaining about slow response times.
+
+**Inject:**
+```bash
+./labs/lab10-autoscaling-broken/inject.sh
 ```
 
 **Symptoms:**
@@ -565,80 +675,17 @@ Show me the CPU metrics for the catalog service from Container Insights
 Why isn't my ECS service scaling even though CPU is high?
 ```
 ```
-Check the auto-scaling configuration for the UI service
+Check the auto-scaling configuration for the catalog service
 ```
 ```
-Show me the CloudWatch alarms for the UI service. Are the alarm actions enabled?
+Show me the CloudWatch alarms for the catalog service. Are the alarm actions enabled?
 ```
 
 **Root Cause:** CloudWatch alarm actions are disabled, so even though the alarm fires, it doesn't trigger the scaling policy.
 
 **Fix:**
 ```bash
-./labs/lab8-autoscaling-broken/fix.sh
-```
-
----
-
-### Lab 9: DynamoDB Latency
-
-**Scenario:** The shopping cart is extremely slow. Adding or removing items takes several seconds instead of milliseconds.
-
-**Inject:**
-```bash
-./labs/lab9-dynamodb-latency/inject.sh
-```
-
-**Symptoms:**
-- Slow cart operations
-- High DynamoDB latency in CloudWatch
-- Service is healthy but slow
-
-**Investigation Prompts:**
-```
-Cart operations are very slow. Is there a DynamoDB latency issue?
-```
-```
-Show me the DynamoDB latency metrics for the carts table
-```
-
-**Root Cause:** Network latency (500ms) added to DynamoDB traffic using Linux traffic control (`tc`).
-
-**Rollback:**
-```bash
-./labs/lab9-dynamodb-latency/rollback.sh
-# Or wait 5 minutes for auto-rollback
-```
-
----
-
-### Lab 10: RDS Stress
-
-**Scenario:** The catalog service is experiencing intermittent slowdowns and timeouts. The RDS database seems to be under heavy load.
-
-**Inject:**
-```bash
-./labs/lab10-rds-stress/inject.sh
-```
-
-**Symptoms:**
-- Slow and inconsistent response times
-- High RDS CPU
-- Query timeouts
-
-**Investigation Prompts:**
-```
-The catalog service is slow and inconsistent. Is the database under stress?
-```
-```
-Show me the RDS CPU utilization and database connections metrics
-```
-
-**Root Cause:** Heavy, inefficient queries (ORDER BY RAND(), cross joins) consuming database resources.
-
-**Rollback:**
-```bash
-# Stress auto-stops after 2 minutes
+./labs/lab10-autoscaling-broken/fix.sh
 ```
 
 ---
@@ -647,12 +694,12 @@ Show me the RDS CPU utilization and database connections metrics
 
 The `labs/` directory contains all lab scripts organized by lab number:
 
-| Lab | Inject Script | Rollback Script | Target | Duration |
-|-----|---------------|-----------------|--------|----------|
-| Lab 7 | `labs/lab7-cpu-stress/inject.sh` | `labs/lab7-cpu-stress/rollback.sh` | catalog | 5 min |
-| Lab 8 | `labs/lab8-autoscaling-broken/inject.sh` | `labs/lab8-autoscaling-broken/fix.sh` | ui | Until fixed |
-| Lab 9 | `labs/lab9-dynamodb-latency/inject.sh` | `labs/lab9-dynamodb-latency/rollback.sh` | carts | 5 min |
-| Lab 10 | `labs/lab10-rds-stress/inject.sh` | (auto-terminates) | catalog | 2 min |
+| Lab | Inject Script | Fix Script | Target | Duration |
+|-----|---------------|------------|--------|----------|
+| Lab 7 | `labs/lab7-cpu-stress/inject.sh` | `labs/lab7-cpu-stress/fix.sh` | catalog | Until fixed |
+| Lab 8 | `labs/lab8-ddos-simulation/inject.sh` | `labs/lab8-ddos-simulation/fix.sh` | ui/ALB | Until fixed |
+| Lab 9 | `labs/lab9-dynamodb-attack/inject.sh` | `labs/lab9-dynamodb-attack/fix.sh` | carts | Until fixed |
+| Lab 10 | `labs/lab10-autoscaling-broken/inject.sh` | `labs/lab10-autoscaling-broken/fix.sh` | catalog | Until fixed |
 
 ### Environment Variables
 
@@ -715,7 +762,28 @@ This observability stack provides AWS DevOps Agent with the data it needs to cor
 
 **Important:** Remember to destroy all resources to avoid ongoing charges!
 
-### Step 1: Restore Lab Configurations
+### Option 1: Use the Destroy Script (Recommended)
+
+The destroy script handles all dependencies automatically, ensuring a clean one-shot destruction:
+
+```bash
+./scripts/destroy.sh
+```
+
+This script will:
+1. Scale down and delete all ECS services
+2. Delete Load Balancers
+3. Delete VPC Endpoints (common blocker for subnet deletion)
+4. Delete NAT Gateways
+5. Clean up orphaned network interfaces
+6. Remove any terraform state locks
+7. Run `terraform destroy`
+
+### Option 2: Manual Destruction
+
+If you prefer manual control:
+
+#### Step 1: Restore Lab Configurations
 
 If you have any active lab faults, restore them first:
 ```bash
@@ -725,7 +793,7 @@ If you have any active lab faults, restore them first:
 # ... etc
 ```
 
-### Step 2: Destroy Infrastructure
+#### Step 2: Destroy Infrastructure
 
 ```bash
 cd terraform/ecs/default
@@ -734,6 +802,33 @@ terraform destroy
 ```
 
 Destruction takes ~10-15 minutes.
+
+#### Troubleshooting Destroy Failures
+
+If `terraform destroy` fails with `DependencyViolation` errors on subnets, there are likely resources still using them:
+
+```bash
+# Find what's blocking subnet deletion
+aws ec2 describe-network-interfaces \
+  --filters "Name=subnet-id,Values=<subnet-id>" \
+  --query "NetworkInterfaces[*].{ID:NetworkInterfaceId,Type:InterfaceType,Description:Description}"
+
+# Common blockers are VPC Endpoints - delete them first
+aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=<vpc-id>" --query 'VpcEndpoints[*].VpcEndpointId'
+aws ec2 delete-vpc-endpoints --vpc-endpoint-ids <endpoint-id>
+
+# Then retry terraform destroy
+terraform destroy
+```
+
+If you get a state lock error:
+```bash
+# Force unlock (use the lock ID from the error message)
+terraform force-unlock <lock-id>
+
+# Or remove the lock file for local state
+rm -f .terraform.tfstate.lock.info
+```
 
 ### Step 3: Delete DevOps Agent Space (Optional)
 
