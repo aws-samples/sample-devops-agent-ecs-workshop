@@ -83,10 +83,6 @@ The lab deploys the **AWS Retail Store Sample Application**, a fully functional 
 
 ![Architecture](./docs/images/retail-store-architecture.png)
 
-### Microservices Overview
-
-![Microservices](./docs/images/retail-store-microservices.png)
-
 ### Microservices
 
 | Service | Language | Description | Backend |
