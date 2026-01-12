@@ -339,7 +339,7 @@ These labs inject real performance issues to simulate production incidents:
 | [Lab 7](#lab-7-cpu-stress) | CPU Stress | Catalog | Intermediate |
 | [Lab 8](#lab-8-ddos-attack-simulation) | DDoS Attack Simulation | UI/ALB | Advanced |
 | [Lab 9](#lab-9-dynamodb-attack) | DynamoDB Attack | Carts | Advanced |
-| [Lab 10](#lab-10-auto-scaling-not-working) | Auto-Scaling Not Working | Catalog | Intermediate |
+| [Lab 10](#lab-10-auto-scaling-not-working) | Auto-Scaling Not Working | Catalog | Advanced |
 
 ### Lab Workflow
 
