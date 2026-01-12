@@ -88,10 +88,10 @@ The lab deploys the **AWS Retail Store Sample Application**, a fully functional 
 | Service | Language | Description | Backend |
 |---------|----------|-------------|---------|
 | **UI** | Java (Spring Boot) | Store frontend, serves web pages | Calls other services |
-| **Catalog** | Go | Product catalog API | RDS MariaDB |
+| **Catalog** | Go | Product catalog API | Aurora MySQL |
 | **Cart** | Java (Spring Boot) | Shopping cart management | DynamoDB |
 | **Checkout** | Node.js (NestJS) | Checkout orchestration | ElastiCache Redis |
-| **Orders** | Java (Spring Boot) | Order processing | RDS MariaDB + Amazon MQ |
+| **Orders** | Java (Spring Boot) | Order processing | Aurora PostgreSQL + Amazon MQ |
 
 > **Note:** This lab uses pre-built container images from Amazon ECR. The application source code is available in the [AWS Retail Store Sample App](https://github.com/aws-containers/retail-store-sample-app) repository.
 
@@ -100,7 +100,7 @@ The lab deploys the **AWS Retail Store Sample Application**, a fully functional 
 | Category | Components |
 |----------|------------|
 | **Compute** | ECS Cluster (Fargate), 5 ECS Services, Application Load Balancer |
-| **Data Stores** | RDS MariaDB (Catalog, Orders), DynamoDB (Cart), ElastiCache Redis (Checkout), Amazon MQ (Orders) |
+| **Data Stores** | Aurora MySQL (Catalog), Aurora PostgreSQL (Orders), DynamoDB (Cart), ElastiCache Redis (Checkout), Amazon MQ (Orders) |
 | **Networking** | VPC with public/private subnets, NAT Gateway, Security Groups, ECS Service Connect |
 | **Observability** | CloudWatch Container Insights (Enhanced), CloudWatch Logs, Alarms, Dashboard |
 

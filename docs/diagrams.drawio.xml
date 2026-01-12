@@ -89,7 +89,7 @@
         <mxCell id="goczM1d1iUw0BL3zi95A-2" value="&lt;b&gt;Catalog&lt;br&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeWidth=3;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#0066cc;" parent="jgWlyvSFQPHCqmJwotSo-1" vertex="1">
           <mxGeometry x="620" y="320" width="80" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="goczM1d1iUw0BL3zi95A-3" value="&lt;b&gt;MySQL /&lt;br&gt;MariaDB&lt;br&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeWidth=3;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#009900;" parent="jgWlyvSFQPHCqmJwotSo-1" vertex="1">
+        <mxCell id="goczM1d1iUw0BL3zi95A-3" value="&lt;b&gt;Aurora&lt;br&gt;MySQL&lt;br&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeWidth=3;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#009900;" parent="jgWlyvSFQPHCqmJwotSo-1" vertex="1">
           <mxGeometry x="620" y="440" width="80" height="80" as="geometry" />
         </mxCell>
         <mxCell id="goczM1d1iUw0BL3zi95A-4" value="" style="endArrow=block;html=1;fontColor=#ff9933;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;endFill=1;" parent="jgWlyvSFQPHCqmJwotSo-1" source="goczM1d1iUw0BL3zi95A-2" target="goczM1d1iUw0BL3zi95A-3" edge="1">

@@ -4,41 +4,31 @@ This Terraform module creates all the necessary infrastructure and deploys the r
 
 ## Architecture
 
-The module deploys a complete microservices architecture:
+The module deploys a complete microservices architecture with the following components:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              VPC (10.0.0.0/16)                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        Public Subnets                                │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │              Application Load Balancer                       │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        Private Subnets                               │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │                    ECS Cluster (Fargate)                     │   │   │
-│  │  │  ┌─────┐ ┌─────────┐ ┌──────┐ ┌──────────┐ ┌────────┐      │   │   │
-│  │  │  │ UI  │ │ Catalog │ │ Cart │ │ Checkout │ │ Orders │      │   │   │
-│  │  │  └─────┘ └─────────┘ └──────┘ └──────────┘ └────────┘      │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │                    Data Stores                               │   │   │
-│  │  │  ┌─────────────┐ ┌───────────┐ ┌─────────────┐ ┌─────────┐ │   │   │
-│  │  │  │ RDS MariaDB │ │ DynamoDB  │ │ ElastiCache │ │   MQ    │ │   │   │
-│  │  │  └─────────────┘ └───────────┘ └─────────────┘ └─────────┘ │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+**Compute**
+- ECS Cluster with Fargate capacity provider
+- 5 ECS Services (UI, Catalog, Cart, Checkout, Orders)
+- Application Load Balancer for traffic distribution
+
+**Data Stores**
+- Aurora MySQL - Catalog database
+- Aurora PostgreSQL - Orders database
+- DynamoDB - Cart storage
+- ElastiCache Redis - Checkout session state
+- Amazon MQ (RabbitMQ) - Order message queue
+
+**Networking**
+- VPC with public and private subnets across multiple AZs
+- NAT Gateway for outbound internet access
+- Security Groups controlling service-to-service communication
 
 ## Features
 
 - VPC with public and private subnets across multiple AZs
 - ECS cluster using Fargate for serverless compute
 - 5 microservices: UI, Catalog, Cart, Checkout, Orders
-- Data stores: RDS MariaDB, DynamoDB, ElastiCache Redis, Amazon MQ
+- Data stores: Aurora MySQL (Catalog), Aurora PostgreSQL (Orders), DynamoDB, ElastiCache Redis, Amazon MQ
 - ECS Service Connect for service-to-service communication
 - Application Load Balancer with health checks
 - CloudWatch Container Insights (Enhanced) for observability
