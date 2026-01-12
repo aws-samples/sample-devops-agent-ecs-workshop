@@ -81,7 +81,7 @@ This lab provides a production-ready Amazon ECS deployment environment for learn
 
 The lab deploys the **AWS Retail Store Sample Application**, a fully functional e-commerce application consisting of 5 microservices:
 
-![Architecture](./docs/images/retail-store-architecture.png)
+![Architecture](./docs/images/retail-store-ecs-architecture.png)
 
 ### Microservices
 
