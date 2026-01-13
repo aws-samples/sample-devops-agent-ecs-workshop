@@ -224,7 +224,7 @@ The agent uses a **dual-console architecture**:
 
 ### Step 1: Create an Agent Space
 
-1. Navigate to the [AWS DevOps Agent Console](https://console.aws.amazon.com/devops-agent/home?region=us-east-1)
+1. Navigate to the [AWS DevOps Agent Console](https://us-east-1.console.aws.amazon.com/aidevops/home?region=us-east-1)
 2. Click **Begin setup** (or **Create Agent Space** if you have existing spaces)
 3. Enter details:
    - **Name:** `retail-store-ecs-lab`
@@ -375,12 +375,16 @@ Each lab follows a consistent pattern:
 - Service events showing `ResourceInitializationError`
 - No new logs appearing in CloudWatch
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-Why is the catalog service failing to start new tasks?
+Why is the catalog service failing to start new tasks in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-Check the ECS service events for the catalog service
+Check the ECS service events for the catalog service in the retail-store-ecs-cluster. What is the stoppedReason for the failed catalog tasks?
 ```
 
 **Root Cause:** Task definition references a non-existent CloudWatch log group.
@@ -406,12 +410,16 @@ Check the ECS service events for the catalog service
 - Error: "unable to pull secrets or registry auth"
 - Customers cannot place orders
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-Why is the orders service failing to start?
+Why is the orders service failing to start in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-What IAM permissions does the orders service task execution role have?
+Check the stopped tasks for the orders service in retail-store-ecs-cluster and explain what is the issue.
 ```
 
 **Root Cause:** Task execution role is missing `secretsmanager:GetSecretValue` permission.
@@ -437,12 +445,16 @@ What IAM permissions does the orders service task execution role have?
 - Service never stabilizes
 - Service events show "unhealthy" messages
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-Why does the UI service keep restarting tasks?
+Why does the UI service keep restarting tasks in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-What health check configuration is the UI service using?
+Investigate why UI service tasks are being replaced in retail-store-ecs-cluster. Check the health check configuration and service events for unhealthy task failures.
 ```
 
 **Root Cause:** Health check path is misconfigured (`/wrong-health-endpoint` instead of `/actuator/health`).
@@ -469,12 +481,16 @@ What health check configuration is the UI service using?
 - Database connection timeouts in logs
 - RDS appears healthy
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-The catalog service can't connect to the database. What's wrong?
+Why is catalog not working in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-What security groups are attached to the catalog service and the RDS database?
+The catalog application is down in retail-store-ecs-cluster. Check the CloudWatch logs for database connection errors and investigate the networking configuration between ECS and RDS.
 ```
 
 **Root Cause:** RDS security group is missing ingress rule allowing traffic from catalog service on port 3306.
@@ -501,15 +517,16 @@ What security groups are attached to the catalog service and the RDS database?
 - Checkout unavailable - customers cannot complete purchases
 - Rapid task cycling as ECS keeps trying to start new tasks
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-Why is the checkout service crashing? The tasks keep restarting.
+Why is the checkout service crashing in retail-store-ecs-cluster? The tasks keep restarting.
 ```
+
+**Investigation starting point:**
 ```
-What is the exit code for the stopped checkout tasks? Is it an OOM kill?
-```
-```
-Show me the memory configuration for the checkout service task definition
+Check the stopped checkout tasks in retail-store-ecs-cluster and explain why they crashed. Look for any indicators in the stopped task reasons.
 ```
 
 **Root Cause:** A memory-stress sidecar container is consuming more memory than the task limit allows, causing OOM kills.
@@ -535,12 +552,16 @@ Show me the memory configuration for the checkout service task definition
 - Catalog service is healthy
 - UI logs show connection errors
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-The product catalog is empty but the catalog service looks healthy. What's wrong?
+The product catalog is empty but the catalog service in retail-store-ecs-cluster looks healthy. What's wrong?
 ```
+
+**Investigation starting point:**
 ```
-How does the UI service connect to the catalog service?
+Show me the networking configuration for the services in retail-store-ecs-cluster. Check the UI service to identify any misconfiguration.
 ```
 
 **Root Cause:** UI service environment variable points to wrong endpoint (`http://catalog-broken` instead of `http://catalog`).
@@ -566,12 +587,16 @@ How does the UI service connect to the catalog service?
 - High CPU in Container Insights
 - Service is running but slow
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-The catalog service is slow. Is there high CPU utilization?
+Why is catalog slow in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-Show me the CPU metrics for the catalog service from Container Insights
+The catalog service is very slow in retail-store-ecs-cluster. Check the CPU utilization metrics and task definition to identify what is causing high CPU usage.
 ```
 
 **Root Cause:** `stress-ng` process consuming CPU inside the container.
@@ -599,12 +624,16 @@ Show me the CPU metrics for the catalog service from Container Insights
 - 5XX errors increasing
 - Rogue ECS tasks running `http-flood-attack`
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-The retail app is extremely slow. Users are complaining about timeouts. What's happening?
+We're seeing a massive traffic spike on the retail application. What's causing this?
 ```
+
+**Investigation starting point:**
 ```
-We're seeing a massive traffic spike on the ALB. Is this a DDoS attack?
+Investigate the networking components like ALB metrics and target groups for retail-store-ecs-cluster. Then check all running tasks in the cluster.
 ```
 
 **Root Cause:** Rogue ECS tasks flooding the ALB with HTTP requests using curl and GNU parallel.
@@ -631,15 +660,16 @@ We're seeing a massive traffic spike on the ALB. Is this a DDoS attack?
 - Rogue ECS tasks running `dynamodb-stress-attack`
 - Service returning 500 errors
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-The carts service is completely broken. Users can't add items to cart. Check DynamoDB for issues.
+The shopping cart service is experiencing issues in retail-store-ecs-cluster. What's wrong?
 ```
+
+**Investigation starting point:**
 ```
-DynamoDB is being throttled heavily. What's consuming all the read capacity?
-```
-```
-Are there any suspicious ECS tasks running that might be attacking DynamoDB?
+Check the DynamoDB metrics and CloudWatch logs for the carts service in retail-store-ecs-cluster. Also review all running tasks in the cluster.
 ```
 
 **Root Cause:** Rogue ECS tasks flooding DynamoDB with scan requests. Table switched to low provisioned capacity (5 RCU) which is easily overwhelmed.
@@ -666,15 +696,16 @@ Are there any suspicious ECS tasks running that might be attacking DynamoDB?
 - Service does NOT scale out (stays at current task count)
 - Application becomes slow/unresponsive
 
-**Investigation Prompts:**
+**Try these investigation prompts:**
+
+**Investigation details:**
 ```
-Why isn't my ECS service scaling even though CPU is high?
+Why isn't the catalog service scaling in retail-store-ecs-cluster?
 ```
+
+**Investigation starting point:**
 ```
-Check the auto-scaling configuration for the catalog service
-```
-```
-Show me the CloudWatch alarms for the catalog service. Are the alarm actions enabled?
+Check the Resource utilization for the catalog service in retail-store-ecs-cluster and review the ECS service auto-scaling configuration.
 ```
 
 **Root Cause:** CloudWatch alarm actions are disabled, so even though the alarm fires, it doesn't trigger the scaling policy.
@@ -828,7 +859,7 @@ rm -f .terraform.tfstate.lock.info
 
 ### Step 3: Delete DevOps Agent Space (Optional)
 
-1. Navigate to [AWS DevOps Agent Console](https://console.aws.amazon.com/devops-agent/home?region=us-east-1)
+1. Navigate to [AWS DevOps Agent Console](https://us-east-1.console.aws.amazon.com/aidevops/home?region=us-east-1)
 2. Select your Agent Space
 3. Click **Delete** and confirm
 
