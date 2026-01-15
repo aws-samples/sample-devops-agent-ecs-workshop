@@ -38,10 +38,20 @@ echo "  Execution role: $EXECUTION_ROLE_NAME"
 
 # Step 2: Find Secrets Manager policy
 echo "[2/4] Finding Secrets Manager policy..."
+
+# Find the orders policy (contains secretsmanager permissions)
 SECRETS_POLICY_ARN=$(aws iam list-attached-role-policies \
   --role-name $EXECUTION_ROLE_NAME \
-  --query 'AttachedPolicies[?contains(PolicyName, `ecret`) || contains(PolicyName, `Secret`)].PolicyArn' \
+  --query "AttachedPolicies[?contains(PolicyName, 'orders')].PolicyArn" \
   --output text | head -1)
+
+if [ -z "$SECRETS_POLICY_ARN" ] || [ "$SECRETS_POLICY_ARN" == "None" ]; then
+  # Fallback: try to find policy by Secret in name
+  SECRETS_POLICY_ARN=$(aws iam list-attached-role-policies \
+    --role-name $EXECUTION_ROLE_NAME \
+    --query 'AttachedPolicies[?contains(PolicyName, `Secret`)].PolicyArn' \
+    --output text | head -1)
+fi
 
 if [ -z "$SECRETS_POLICY_ARN" ] || [ "$SECRETS_POLICY_ARN" == "None" ]; then
   # Try to find inline policies with secrets access
