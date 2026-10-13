@@ -603,7 +603,7 @@ The catalog service is very slow in retail-store-ecs-cluster. Check the CPU util
 
 **Rollback:**
 ```bash
-./labs/lab7-cpu-stress/rollback.sh
+./labs/lab7-cpu-stress/fix.sh
 # Or wait 5 minutes for auto-rollback
 ```
 
